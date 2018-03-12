@@ -13,4 +13,10 @@ public class Todo {
     public int id;
 
     public String todoText;
+    public int dayOfMonths;
+    public int month;
+    public int year;
+    public boolean every;
+    public boolean checked;
+    public byte days;
 }

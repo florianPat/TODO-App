@@ -5,6 +5,7 @@ import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Delete;
 import android.arch.persistence.room.Insert;
 import android.arch.persistence.room.Query;
+import android.arch.persistence.room.Update;
 
 /**
  * Created by Florian on 11.03.2018.
@@ -16,8 +17,12 @@ public interface TodoDao {
     Todo[] getAll();
 
     @Insert
-    public void insert(Todo... todos);
+    void insert(Todo... todos);
 
     @Delete
-    public void delete(Todo... todos);
+    int delete(Todo... todos);
+
+    @Update
+    int update(Todo... users);
+
 }

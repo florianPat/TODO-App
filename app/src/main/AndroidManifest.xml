@@ -22,7 +22,11 @@
         <activity android:name=".InfoActivity" />
         <activity
             android:name=".AddTODOActivity"
-            android:label="@string/title_activity_add_todo"></activity>
+            android:label="@string/title_activity_add_todo"
+            android:parentActivityName=".MainActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" /></activity>
     </application>
 
 </manifest>

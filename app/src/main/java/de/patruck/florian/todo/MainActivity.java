@@ -17,6 +17,9 @@ import android.view.MenuItem;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.Toast;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 import de.patruck.florian.todo.database.Todo;
@@ -37,10 +40,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -53,8 +56,12 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setHasFixedSize(true);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        database = Room.databaseBuilder(this, TodoDatabase.class, "todo").allowMainThreadQueries().build();
+        database = Room.databaseBuilder(this, TodoDatabase.class, "todo").allowMainThreadQueries().fallbackToDestructiveMigration().build();
         dao = database.todoDao();
+
+        //NOTE: If I want to clear to whole database: here you go!
+        //dao.delete(dao.getAll());
+
         adapter = new TodoAdapter(dao);
         recyclerView.setAdapter(adapter);
 
@@ -70,8 +77,10 @@ public class MainActivity extends AppCompatActivity {
 
                 Todo todo = new Todo();
                 todo.id = id;
-                dao.delete(todo);
-                adapter.swapDao(dao);
+                if(dao.delete(todo) == 1) {
+                    adapter.swapDao(dao);
+                    --adapter.count;
+                }
             }
         };
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleCallback);
@@ -79,18 +88,38 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        adapter.refresh();
+        adapter.notifyDataSetChanged();
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(requestCode == REQUEST_CODE) {
-            if(resultCode == RESULT_OK) {
-                if(data.hasExtra(AddTODOActivity.TODO_TEXT)) {
+        if (requestCode == REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                if (data.hasExtra(AddTODOActivity.TODO_TEXT) && data.hasExtra(AddTODOActivity.TODO_DATE) &&
+                        data.hasExtra(AddTODOActivity.TODO_EVERY)) {
                     Todo todo = new Todo();
                     todo.todoText = data.getStringExtra(AddTODOActivity.TODO_TEXT);
-                    if(todo.todoText != "") {
-                        dao.insert(todo);
-                        adapter.swapDao(dao);
+                    todo.every = data.getBooleanExtra(AddTODOActivity.TODO_EVERY, false);
+                    todo.days = data.getByteExtra(AddTODOActivity.TODO_DAY, (byte)0);
+                    todo.checked = false;
+
+                    int date[] = data.getIntArrayExtra(AddTODOActivity.TODO_DATE);
+                    if (BuildConfig.DEBUG && date.length != 3) {
+                        throw new AssertionError();
                     }
-                } else {
-                    Log.e(MainActivity.class.getSimpleName(), "Returned nothing!");
+                    todo.dayOfMonths = date[0];
+                    todo.month = date[1];
+                    todo.year = date[2];
+
+                    if (!todo.todoText.equals("")) {
+                        dao.insert(todo);
+                    } else {
+                        Log.e(MainActivity.class.getSimpleName(), "Returned nothing!");
+                    }
                 }
             }
         }
@@ -118,5 +147,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        database.close();
     }
 }
