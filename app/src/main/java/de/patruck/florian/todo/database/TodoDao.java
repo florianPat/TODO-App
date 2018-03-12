@@ -16,6 +16,9 @@ public interface TodoDao {
     @Query("SELECT * FROM Todo")
     Todo[] getAll();
 
+    @Query("SELECT * FROM Todo WHERE id = :id")
+    Todo getTodoFromId(int id);
+
     @Insert
     void insert(Todo... todos);
 

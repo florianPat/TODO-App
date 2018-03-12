@@ -1,5 +1,7 @@
 package de.patruck.florian.todo.database;
 
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -7,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.time.temporal.WeekFields;
@@ -98,6 +101,22 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
         notifyDataSetChanged();
     }
 
+    private boolean onlyOneBitSet(byte chararr) {
+        boolean result = false;
+        byte testByte = 1;
+
+        for(int i = 0; i < 8; ++i, testByte <<= 1) {
+            if((chararr & testByte) > 0) {
+                if(result == false)
+                    result = true;
+                else
+                    return false;
+            }
+        }
+
+        return result;
+    }
+
     public void refresh() {
         count = 0;
 
@@ -112,13 +131,17 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
                 todo.checked = true;
                 dao.update(todo);
             }
-            else if((todo.days & dateNow.currentDay) > 0) {
-                ++count;
-            }
-            else {
-                if(BuildConfig.DEBUG) {
+            else if((todo.finished & ~dateNow.currentDay) > 0) {
+                if(BuildConfig.DEBUG && !onlyOneBitSet(todo.finished)) {
                     throw new AssertionError();
                 }
+
+                todo.days |= todo.finished;
+                todo.finished = 0;
+                dao.update(todo);
+            }
+            if(todo.every && (todo.days & dateNow.currentDay) > 0) {
+                ++count;
             }
         }
     }
@@ -153,9 +176,29 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
 
         private TextView tv_title;
 
-        public ViewHolder(View itemView) {
+        public ViewHolder(final View itemView) {
             super(itemView);
             tv_title = itemView.findViewById(R.id.todo_text);
+            tv_title.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    view.setBackgroundColor(view.getResources().getColor(R.color.colorViewHolderSelected));
+                    return true;
+                }
+            });
+            tv_title.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Drawable background = view.getBackground();
+
+                    if(BuildConfig.DEBUG && !(background instanceof ColorDrawable)) {
+                        throw new AssertionError();
+                    } else {
+                        if(((ColorDrawable) background).getColor() == view.getResources().getColor(R.color.colorViewHolderSelected))
+                            tv_title.setBackgroundColor(view.getResources().getColor(R.color.colorViewHolderNormal));
+                    }
+                }
+            });
         }
     }
 }

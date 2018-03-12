@@ -2,6 +2,8 @@ package de.patruck.florian.todo;
 
 import android.arch.persistence.room.Room;
 import android.content.Intent;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -15,6 +17,7 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.accessibility.AccessibilityManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
@@ -75,11 +78,36 @@ public class MainActivity extends AppCompatActivity {
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
                 int id = (int) viewHolder.itemView.getTag();
 
-                Todo todo = new Todo();
-                todo.id = id;
-                if(dao.delete(todo) == 1) {
-                    adapter.swapDao(dao);
-                    --adapter.count;
+                Todo todo = dao.getTodoFromId(id);
+
+                TextView textView = viewHolder.itemView.findViewById(R.id.todo_text);
+                Drawable background = textView.getBackground();
+
+                if(BuildConfig.DEBUG && !(background instanceof ColorDrawable)) {
+                    throw new AssertionError();
+                } else {
+                    if (((ColorDrawable) background).getColor() == viewHolder.itemView.getResources().getColor(R.color.colorViewHolderSelected)
+                            || (!todo.every)) {
+                        if (dao.delete(todo) == 1) {
+                            --adapter.count;
+                            adapter.swapDao(dao);
+                        } else {
+                            if (BuildConfig.DEBUG) {
+                                throw new AssertionError();
+                            }
+                        }
+                    } else {
+                        TodoAdapter.DateNow dateNow = new TodoAdapter.DateNow();
+
+                        if ((dateNow.currentDay & todo.days) > 0) {
+                            todo.days &= ~dateNow.currentDay;
+                            todo.finished |= dateNow.currentDay;
+                            dao.update(todo);
+                        }
+
+                        --adapter.count;
+                        adapter.swapDao(dao);
+                    }
                 }
             }
         };
@@ -106,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
                     todo.every = data.getBooleanExtra(AddTODOActivity.TODO_EVERY, false);
                     todo.days = data.getByteExtra(AddTODOActivity.TODO_DAY, (byte)0);
                     todo.checked = false;
+                    todo.finished = 0;
 
                     int date[] = data.getIntArrayExtra(AddTODOActivity.TODO_DATE);
                     if (BuildConfig.DEBUG && date.length != 3) {

@@ -19,4 +19,5 @@ public class Todo {
     public boolean every;
     public boolean checked;
     public byte days;
+    public byte finished;
 }
