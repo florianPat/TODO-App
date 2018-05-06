@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
         database = Room.databaseBuilder(this, TodoDatabase.class, "todo").allowMainThreadQueries().fallbackToDestructiveMigration().build();
         dao = database.todoDao();
 
-        //NOTE: If I want to clear to whole database: here you go!
+        //NOTE: If I want to clear the whole database: here you go!
         //dao.delete(dao.getAll());
 
         adapter = new TodoAdapter(dao);
@@ -90,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
                             || (!todo.every)) {
                         if (dao.delete(todo) == 1) {
                             --adapter.count;
+                            dao.delete(todo);
                             adapter.swapDao(dao);
                         } else {
                             if (BuildConfig.DEBUG) {
@@ -106,6 +107,8 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         --adapter.count;
+                        adapter.deleteTodos.add(todo);
+                        dao.delete(todo);
                         adapter.swapDao(dao);
                     }
                 }
@@ -181,6 +184,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if(!adapter.deleteTodos.isEmpty())
+        {
+            Todo[] todos = new Todo[adapter.deleteTodos.size()];
+            adapter.deleteTodos.toArray(todos);
+            dao.insert(todos);
+        }
 
         database.close();
     }

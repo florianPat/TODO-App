@@ -2,19 +2,17 @@ package de.patruck.florian.todo.database;
 
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
-import java.time.temporal.WeekFields;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Vector;
 
 import de.patruck.florian.todo.BuildConfig;
 import de.patruck.florian.todo.R;
@@ -27,6 +25,7 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
 
     private TodoDao dao;
     public int count;
+    public Vector<Todo> deleteTodos;
 
     public static class DateNow {
         public int dayOfMonts = 0, months = 0, year = 0;
@@ -92,8 +91,7 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
 
     public TodoAdapter(TodoDao dao) {
         this.dao = dao;
-
-        refresh();
+        deleteTodos = new Vector<>();
     }
 
     public void swapDao(TodoDao dao) {
@@ -120,6 +118,14 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
     public void refresh() {
         count = 0;
 
+        if(!deleteTodos.isEmpty())
+        {
+            Todo[] todos = new Todo[deleteTodos.size()];
+            deleteTodos.toArray(todos);
+            dao.insert(todos);
+            deleteTodos.clear();
+        }
+
         DateNow dateNow = new DateNow();
 
         for(Todo todo : this.dao.getAll()) {
@@ -138,10 +144,14 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
 
                 todo.days |= todo.finished;
                 todo.finished = 0;
+
                 dao.update(todo);
             }
             if(todo.every && (todo.days & dateNow.currentDay) > 0) {
                 ++count;
+            } else {
+                deleteTodos.add(todo);
+                dao.delete(todo);
             }
         }
     }
@@ -156,8 +166,11 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         Todo[] todos = dao.getAll();
-        if(position >= todos.length)
-            return;
+
+        if(BuildConfig.DEBUG && position >= count)
+        {
+            throw new AssertionError();
+        }
 
         Todo todo = todos[position];
 
